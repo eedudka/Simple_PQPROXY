@@ -2,7 +2,7 @@
 
 A simple and lightweight MITM forward proxy with Post-Quantum TLS support (OpenSSL-OQS, ML-KEM-768) and dynamic leaf certificate generation.
 
-- 🇷🇺 [Русский](README.ru.md) 
+- 🇷🇺 [Русский](doc/README.ru.md) 
 ---
 
 ## 🚀 Features

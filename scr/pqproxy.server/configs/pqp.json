@@ -1,0 +1,40 @@
+{
+  "main.settings": {
+    "server": {
+      "port": 3443,
+      "host": "127.0.0.1"
+    },
+    "ssl": {
+      "pq_key": "crts/falcon-key.pem",
+      "pq_cert": "crts/falcon-crt.pem",
+      "key": "configs/crts/my-proxy.key",
+      "cert": "configs/crts/my-proxy.crt",
+      "pbx":"configs/crts/my-proxy.pfx",
+      "pq_pbx":""
+    },
+    "pq.methods": {
+      "kem": "x25519",
+      "cipher_suite": "TLS_AES_256_GCM_SHA384",
+      "signature": "falscon512"
+    },
+    "lib.paths": {
+      "openssl": "/usr/local/openssl-3.5.1/",
+      "oqs_lib": "/lib64",
+      "ossl-modules": "/lib64/ossl-modules"
+    }
+  },
+  "route.ruls": {
+    "default": {
+      "secure": "all",
+      "methods": [ "GET //:x25519mlkem768::", "POST", "PUT", "DELETE" ]
+    },
+    "middle": {
+      "secure_type": "middle",
+      "methods": [ "GET", "POST" ]
+    },
+    "full_reject": {
+      "secure_type": "nobody",
+      "methods": []
+    }
+  }
+}

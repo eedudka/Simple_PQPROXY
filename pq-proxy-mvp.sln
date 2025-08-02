@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36310.24
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pqproxy.server", "scr\pqproxy.server\pqproxy.server.csproj", "{EA8D6422-42DA-48FE-A823-4898F44E2126}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scr", "scr", "{027FA04E-56EC-7B26-372C-A48CC532505F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug Remoute host|Any CPU = Debug Remoute host|Any CPU
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EA8D6422-42DA-48FE-A823-4898F44E2126}.Debug Remoute host|Any CPU.ActiveCfg = Debug Remoute host|Any CPU
+		{EA8D6422-42DA-48FE-A823-4898F44E2126}.Debug Remoute host|Any CPU.Build.0 = Debug Remoute host|Any CPU
+		{EA8D6422-42DA-48FE-A823-4898F44E2126}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA8D6422-42DA-48FE-A823-4898F44E2126}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA8D6422-42DA-48FE-A823-4898F44E2126}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA8D6422-42DA-48FE-A823-4898F44E2126}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {35226807-EC62-4B7F-BF4B-B960E7902D32}
+	EndGlobalSection
+EndGlobal

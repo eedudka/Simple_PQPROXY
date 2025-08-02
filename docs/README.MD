@@ -1,167 +1,181 @@
-# Simple PQ Proxy 
+# Simple PQ Proxy
 
-Простой и легкий MITM-forward-proxy с поддержкой Post-Quantum TLS (OpenSSL-OQS, mlkem768) и динамической генерацией листовых сертификатов.
+A simple and lightweight MITM forward proxy with Post-Quantum TLS support (OpenSSL-OQS, ML-KEM-768) and dynamic leaf certificate generation.
+
+- 🇷🇺 [Русский](README.ru.md) 
+---
+
+## 🚀 Features
+
+* **PQ-TLS rewrapping**: client→proxy over standard HTTPS, proxy→origin over hybrid TLS 1.3 (X25519 + ML-KEM-768)
+* **Dynamic leaf certificates**: the proxy automatically issues a certificate with `CN=target_host` / `SAN=…` on the fly, using your passwordless PFX as the root CA
+* **Fallback support**: if the server does not support the hybrid PQ group, you can specify a fallback group in `pqp.json`
 
 ---
 
-## 🚀 Возможности
+## ⚙️ Requirements
 
-- **PQ-TLS-перепаковка**: клиент→прокси via стандартный HTTPS, прокси→origin via гибрид TLS 1.3 (X25519 + ML-KEM-768)  
-- **Динамические leaf-серты**: прокси автоматически выпускает сертификат `CN=целевой_хост`/`SAN=…` на лету, используя ваш PFX(без пароля) как корневой CA  
-- **fallback**: если сервер не поддерживает гибрид PQ-группу можно поставить вспомогательную группу в `pqp.json`  
-
----
-
-## ⚙️ Требования
-
-- [.NET 9.0 SDK+](https://dotnet.microsoft.com/download)  
-- [OpenSSL 3.2 (или выше)](https://github.com/openssl/openssl) - данный проект собран на Openssl 3.5.1 
-- [OQS Provider 0.9.0](https://github.com/open-quantum-safe/oqs-provider/)
-- [Liboqs 0.14.0](https://github.com/open-quantum-safe/liboqs)
-- Сгенерированный PFX-файл с корневым CA без пароля (`configs/pqp.json`) 
+* [.NET 9.0 SDK or later](https://dotnet.microsoft.com/download)
+* [OpenSSL 3.2 or later](https://github.com/openssl/openssl) (this project was built with OpenSSL 3.5.1)
+* [OQS Provider 0.9.0](https://github.com/open-quantum-safe/oqs-provider/)
+* [liboqs 0.14.0](https://github.com/open-quantum-safe/liboqs)
+* A generated passwordless PFX file containing your root CA (configured in `configs/pqp.json`)
 
 ---
 
-## Генерация вашего сертификата
+## Generating Your Certificate
 
-- Генерация ключа CA
-``` openssl genrsa -out rootCA.key 4096  ```
-- ca.cnf
-```yaml
-[ req ]
-default_bits       = 4096
-prompt             = no
-default_md         = sha256
-distinguished_name = dn
-x509_extensions    = v3_ca
+1. **Generate the CA private key**
 
-[ dn ]
-C  = RU
-ST = Moscow
-L  = Moscow
-O  = MyCompany
-CN = my-proxy.local
+   ```bash
+   openssl genrsa -out rootCA.key 4096
+   ```
 
-[ v3_ca ]
-basicConstraints = critical,CA:TRUE,pathlen:0
-keyUsage         = critical,keyCertSign,cRLSign
-subjectKeyIdentifier = hash
-subjectAltName   = @alt_names
+2. **Create a self-signed CA certificate (valid for 10 years)**
 
-[ v3_req ]
-basicConstraints   = CA:FALSE
-keyUsage           = critical,digitalSignature,keyEncipherment
-subjectAltName     = @alt_names
+   ```bash
+   openssl req -x509 -new -nodes \
+     -key rootCA.key \
+     -sha256 \
+     -days 3650 \
+     -out rootCA.crt \
+     -subj "/C=RU/ST=Moscow/L=Moscow/O=MyCompany/CN=MyProxy Root CA"
+   ```
 
-[ alt_names ]
-DNS.1 = *your domain*
-IP.1  = *your server ip*
-```
-- Самоподписной сертификат CA (10 лет)
-``` openssl req -x509 -new -nodes -key rootCA.key -out rootCA.crt -days 3650 -config ca.cnf ```
+3. **Generate a CSR and leaf key**
 
-- CSR и ключ leaf
-``` openssl pkcs12 -export   -inkey rootCA.key   -in rootCA.crt   -out proxy.pfx   -passout pass: ```
+   ```bash
+   openssl req -new -nodes \
+     -newkey rsa:2048 \
+     -keyout proxy.key \
+     -out proxy.csr \
+     -subj "/CN=my-proxy.local"
+   ```
 
-- Создание PFX
-```
-openssl pkcs12 -export -out proxy.pfx -inkey proxy.key -in proxy.crt -certfile rootCA.crt -passout pass:
-```
-- После этого:
-```
-Установите rootCA.crt в доверенные сертификаты.
-Перенесите сертефикат в ...\pqproxy.server\configs\crts\
-Укажите в pqp.json название pfx сертификат
-```
+4. **Sign the leaf certificate with the CA, adding SAN**
 
----
+   ```bash
+   openssl x509 -req \
+     -in proxy.csr \
+     -CA rootCA.crt \
+     -CAkey rootCA.key \
+     -CAcreateserial \
+     -out proxy.crt \
+     -days 365 \
+     -sha256 \
+     -extfile <(printf "subjectAltName=DNS:my-proxy.local")
+   ```
 
+5. **Create the PFX bundle**
 
-## 🛠 Конфигурация
+   ```bash
+   openssl pkcs12 -export \
+     -out proxy.pfx \
+     -inkey proxy.key \
+     -in proxy.crt \
+     -certfile rootCA.crt \
+     -passout pass:
+   ```
 
-- В pqp.json укажите необходимые группы
-    Например: 
-    - `x25519mlkem768:x25519` для работы как с PQ так 
-    -  `x25519` для работы только с классическим шифрованием
-    - `x25519mlkem768` для работы только с PQ
- ``` json
-    "pq.methods": {
-      "kem": "x25519mlkem768:x25519",
-      "cipher_suite": "TLS_AES_256_GCM_SHA384",
-      "signature": "falscon512"
-    },
-```
+6. **Finalize setup**
 
-- В configs/pqp.json укажите путь до своего pfx сертификата 
-
-```json
-"ssl": {
-      "pq_key": "crts/falcon-key.pem",
-      "pq_cert": "crts/falcon-crt.pem",
-      "key": "configs/crts/my-proxy.key",
-      "cert": "configs/crts/my-proxy.crt",
-      "pbx":"configs/crts/my-proxy.pfx",
-      "pq_pbx":""
-    },
-```
-
-- В configs/pqp.json укажите путь до установленного Openssl c провайдером и библиотеками OQS
-
-```json
- "lib_paths": {
-      "openssl": "/usr/local/openssl-3.5.1/",
-      "oqs_lib": "/lib64",
-      "ossl-modules": "/lib64/ossl-modules"
-    }
-```
+   * Install `rootCA.crt` into your trusted root certificates.
+   * Copy the certificates into `.../pqproxy.server/configs/crts/`.
+   * Update `pqp.json` to reference your PFX filename.
 
 ---
 
-## 🔍 Примеры использования
+## 🛠 Configuration
 
-1. **PQ-TLS через Cloudflare**  
-   `curl --proxy http://localhost:3443 -v https://pq.cloudflareresearch.com/`  
+1. **PQ methods** in `pqp.json`:
 
-2. **Системный прокси для Windows**
-  Прокси сервер -> Настроить прокси сервер в ручную:  
-   - Адресс: http://адрес вашего сервера   
-   - Прокси сервер -> Порт -> 3443 (или тот что вы указали в pqp.json)  
-   - Сохранить
+   ```json
+   "pq.methods": {
+     "kem": "x25519mlkem768:x25519",
+     "cipher_suite": "TLS_AES_256_GCM_SHA384",
+     "signature": "falcon512"
+   }
+   ```
 
----
-## Чтобы убедится в использовании PQ шифрования:
- - на Windows используйте - Wireshark
- - на Linux tshark - sudo `tshark -i any -f "tcp port 443 and host pq.cloudflareresearch.com" -Y "tls.handshake" -V `
+   * `x25519mlkem768:x25519` — supports both PQ and classic encryption
+   * `x25519` — classic only
+   * `x25519mlkem768` — PQ only
 
----
+2. **SSL paths** in `configs/pqp.json`:
 
-## Анализ Wireshark/tshark:
+   ```json
+   "ssl": {
+     "pq_key": "crts/falcon-key.pem",
+     "pq_cert": "crts/falcon-crt.pem",
+     "key": "configs/crts/my-proxy.key",
+     "cert": "configs/crts/my-proxy.crt",
+     "pbx": "configs/crts/my-proxy.pfx",
+     "pq_pbx": ""
+   },
+   ```
 
-### Найдите в Tls Handshake
- - **Прииспользовании mlkem + x25519** 
-    1. Supported Group: Unknown (0x11ec)
-    2. Supported Group: x25519 (0x001d) 
-    3. Key Share Entry: Group: Unknown (4588), Key Exchange length: 1120
-- **Прииспользовании mlkem** все будет тоже самое, но должна отсутвовать вспомогательная группа x25519 (0x001d)
-- **Прииспользовании x25519** ожидаем отсутвие Unknown (0x11ec) и (4588)
----
+3. **OpenSSL and OQS library locations** in `configs/pqp.json`:
 
-## 📖 Дальнейшие планы 1 этапа
-
-1. **Производительность**  
-   - Кэш leaf-сертификатов  
-   - Пул PQ-TLS-соединений & session tickets  
-   - I/O-оптимизация (Pipelines, ArrayPool)  
-2. **Рефакторинг & документация**   
-   - Покрытие тестами
-   - Улучшение и упращение конфигурации
-3. **Надёжность & мониторинг**  
-   - Graceful shutdown и retry/backoff  
-   - health-endpoint  
-   - Docker-Compose/Kubernetes readiness
+   ```json
+   "lib_paths": {
+     "openssl": "/usr/local/openssl-3.5.1/",
+     "oqs_lib": "/lib64",
+     "ossl-modules": "/lib64/ossl-modules"
+   }
+   ```
 
 ---
 
-## 📜 Лицензия
+## 🔍 Usage Examples
 
-Этот проект распространяется под [Apache 2.0 License](LICENSE).
+1. **PQ-TLS via Cloudflare**
+
+   ```bash
+   curl --proxy http://localhost:3443 -v https://pq.cloudflareresearch.com/
+   ```
+
+2. **System proxy on Windows**
+
+   * Proxy server → Manual proxy setup:
+
+     * Address: `http://<your-proxy-host>`
+     * Port: `3443` (or as defined in `pqp.json`)
+     * Save
+
+---
+
+## Verifying PQ Encryption
+
+* **Windows**: use Wireshark.
+* **Linux**: use tshark:
+
+  ```bash
+  sudo tshark -i any -f "tcp port 443 and host pq.cloudflareresearch.com" -Y "tls.handshake" -V
+  ```
+
+---
+
+## 🔭 Stage 1 Roadmap
+
+1. **Performance**
+
+   * Cache leaf certificates
+   * Pool PQ-TLS connections & session tickets
+   * I/O optimizations (Pipelines, ArrayPool)
+
+2. **Refactoring & Documentation**
+
+   * Add test coverage
+   * Simplify and improve configuration
+
+3. **Reliability & Monitoring**
+
+   * Graceful shutdown with retry/backoff
+   * Health endpoint
+   * Docker Compose / Kubernetes readiness
+
+---
+
+## 📜 License
+
+This project is licensed under the [Apache 2.0 License](LICENSE).

@@ -13,7 +13,7 @@
       "pq_pbx":""
     },
     "pq.methods": {
-      "kem": "x25519",
+      "kem": "x25519:x25519mlkem768",
       "cipher_suite": "TLS_AES_256_GCM_SHA384",
       "signature": "falscon512"
     },
@@ -26,7 +26,7 @@
   "route.ruls": {
     "default": {
       "secure": "all",
-      "methods": [ "GET //:x25519mlkem768::", "POST", "PUT", "DELETE" ]
+      "methods": [ "GET", "POST", "PUT", "DELETE" ]
     },
     "middle": {
       "secure_type": "middle",
